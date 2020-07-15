@@ -1,0 +1,66 @@
+Settle_Time=1000; % maximum number of time to settle
+Starting_temp=2;
+N=Hop.N;
+Perform=1; % 1=Latching; 2=Recall
+File_All=dir('Trial*.mat');
+time_constraint=2; % how many latches.
+
+for read=1:5
+    File=File_All(read).name;
+    load(File);    
+    [~,name,~] = fileparts(File); 
+
+
+    for i=1:size(Record_Track,1) % this runs through all negative weights
+        
+        for g=1:size(Record_Track{i},1) % this runs through the repeats of the record
+        
+        Test_Pattern=unique(Record_Track{i}{g,1},'rows');
+        Initial_Pattern=-ones(N,1);    
+
+        Weight_matrix=Weight{i}{g,1};
+        
+            if Perform==1
+            [recall_sequence, settle, History]=Boltzmann_Latching(Initial_Pattern, Settle_Time, N, Weight_matrix, time_constraint, Starting_temp);
+            else
+            [recall_sequence, settle, ~]=Boltzmann_Recall(Test_Pattern,Settle_Time, N, Weight_matrix);
+            end
+        
+            Attractor_no=size(unique(recall_sequence,'rows'),1); % This contains both novel and old patterns
+
+        [~, Loca]= ismember(recall_sequence, Test_Pattern, 'rows');
+        New_loca=Loca==0;
+        New_Pattern=unique(recall_sequence(New_loca,:),'rows');
+        All_Pattern=[Test_Pattern;New_Pattern]; % combine all novel and old patterns to the dictionary
+        [~, Loca]= ismember(recall_sequence, All_Pattern, 'rows');
+
+        Pattern_size(g,1)=Record_Track{i}{g,5}; % no. of unique attractor states in the previous capacity simulation
+        Pattern_size(g,2)=Attractor_no; % no. of unique attractor states with the boltzmann function (including novel patterns)
+        Stored_Pattern{g,1}=Test_Pattern;
+        Stored_Pattern{g,2}=New_Pattern;
+        Stored_Pattern{g,3}=Loca;
+        Stored_Pattern{g,4}=settle;
+        Stored_Pattern{g,5}=Pattern_size;
+        end
+
+        if Perform==1
+        Attractor_Latch{i,1}=Stored_Pattern;
+        else
+        Attractor_Recall{i,1}=Stored_Pattern;
+        end
+
+
+
+    end
+    if Perform==1
+    save_name=[name,'_Latching'];
+    save(save_name,'Attractor_Latch');
+    else
+    save_name=[name,'_Recall'];
+    save(save_name,'Attractor_Recall');
+    end
+    
+    
+    clearvars -exept Settle_Time N File_All read Starting_temp time_constraint
+
+end
